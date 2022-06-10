@@ -1,11 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.speech_to_text_demo">
 
+
+
+    <!-- 1. Permission -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- 2. To overcome bind to recognition service failed issue -->
     <queries>
         <package android:name="com.google.android.googlequicksearchbox"/>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
    <application
         android:label="speech_to_text_demo"

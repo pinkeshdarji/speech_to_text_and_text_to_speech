@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:keyboard_visibility/keyboard_visibility.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_recognition/speech_recognition.dart';
+import 'package:text_to_speech/text_to_speech.dart';
 
 const kListening = 'Listening...';
 
@@ -14,77 +15,40 @@ class SpeechToTextDemo extends StatefulWidget {
 class _SpeechToTextDemoState extends State<SpeechToTextDemo>
     with WidgetsBindingObserver {
   final String TAG = 'SpeechToTextDemo';
-  bool _showToolbar = false;
 
   final TextEditingController _myController = TextEditingController();
-  final FocusNode _nodeText1 = FocusNode();
+  //final FocusNode _nodeText1 = FocusNode();
 
+  // 1.
   late SpeechRecognition _speech;
+  // 2.
   bool _isSpeechStarted = false;
   bool _speechRecognitionAvailable = false;
+  // 3.
   bool _isListening = false;
+  // 4.
   String transcription = '';
   String currentText = '';
   bool _isContentsPresent = false;
+  // 5.
   bool _isEndOfSpeech = false;
+
+  // 1.
+  TextToSpeech tts = TextToSpeech();
+  // 2.
+  String _ttsGreet = 'How may I help you?';
+  // 3.
+  String _ttsStaticResult = 'Its very hot today';
+
+  bool _isShowResult = false;
 
   @override
   void initState() {
     WidgetsBinding.instance.addObserver(this);
     super.initState();
     _activateSpeechRecognizer();
-    _initKeyboardListener();
+    _tts(_ttsGreet);
   }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    KeyboardVisibilityNotification().dispose();
-    _myController.dispose();
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    switch (state) {
-      case AppLifecycleState.resumed:
-        //_speech.mute(true); //TODO
-        break;
-      // case AppLifecycleState.paused:
-      // case AppLifecycleState.detached:
-      case AppLifecycleState.inactive:
-        //_speech.mute(false); //TODO
-        _stopSpeechRecognition();
-        break;
-    }
-  }
-
-  //----- Toolbar with mic icon -----//
-  Widget _toolBar() => PreferredSize(
-        preferredSize: Size.fromHeight(56),
-        child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              IconButton(
-                  icon: Icon(
-                    Icons.add,
-                    color: Colors.greenAccent,
-                  ),
-                  onPressed: () => null),
-              IconButton(
-                  icon: Icon(
-                    Icons.mic,
-                    color: Colors.deepPurpleAccent,
-                  ),
-                  onPressed: () => _startSpeechRecognition()),
-              IconButton(
-                  icon: Icon(
-                    Icons.add_a_photo,
-                    color: Colors.grey,
-                  ),
-                  onPressed: () => null),
-            ]),
-      );
 
   //----- Init methods -----//
   void _requestPermission() async {
@@ -112,31 +76,12 @@ class _SpeechToTextDemoState extends State<SpeechToTextDemo>
         .then((res) => setState(() => _speechRecognitionAvailable = res));
   }
 
-  void _initKeyboardListener() {
-    KeyboardVisibilityNotification().addNewListener(
-      onChange: (isVisible) {
-        // LogUtil()
-        //     .printLogger(tag: TAG, message: 'keyboard visibility $isVisible');
-        if (!isVisible) {
-          FocusScope.of(context).unfocus();
-        }
-        setState(() {
-          _showToolbar = isVisible;
-        });
-      },
-    );
-  }
-
   //----- Speech related methods -----//
-
-  // void cancel() =>
-  //     _speech.cancel().then((result) => setState(() => _isListening = result));
-
   void onSpeechAvailability(bool result) =>
       setState(() => _speechRecognitionAvailable = result);
 
   void onRecognitionStarted() {
-    currentText = _myController.text;
+    //currentText = _myController.text;
   }
 
   void onRecognitionResult(String text) {
@@ -148,7 +93,7 @@ class _SpeechToTextDemoState extends State<SpeechToTextDemo>
       transcription = text;
       _isListening = true;
       print('recognized text is- $transcription');
-      _myController.text = currentText + transcription;
+      //_myController.text = currentText + transcription;
       _myController.selection = TextSelection.fromPosition(
           TextPosition(offset: _myController.text.length));
     });
@@ -169,8 +114,11 @@ class _SpeechToTextDemoState extends State<SpeechToTextDemo>
 
   void onRecognitionComplete() {
     print('Recognition Completed');
+
     if (transcription.isNotEmpty) {
       _isContentsPresent = true;
+      _processRequest(transcription);
+      _toggleSpeechRecognitionStatus(isSpeechStarted: false);
       // Comment below line if you want to allow listening more when completed.
       //_toggleSpeechRecognitionStatus(isSpeechStarted: false);
     }
@@ -194,13 +142,54 @@ class _SpeechToTextDemoState extends State<SpeechToTextDemo>
 
   _toggleSpeechRecognitionStatus({required bool isSpeechStarted}) {
     // Toggle the keyboard layout
-    isSpeechStarted ? _nodeText1.unfocus() : _nodeText1.requestFocus();
+    //isSpeechStarted ? _nodeText1.unfocus() : _nodeText1.requestFocus();
 
+    if (isSpeechStarted) {
+      _myController.clear();
+    }
     //if(!mounted) return;
     setState(() {
       _isSpeechStarted = isSpeechStarted;
+      _isShowResult = !isSpeechStarted;
       _isListening = false;
     });
+  }
+
+  _processRequest(String transcription) {
+    // Process request here
+    /// Your business logic here
+    //Speak out the result
+    setState(() {
+      _isShowResult = true;
+    });
+    _tts(_ttsStaticResult);
+  }
+
+  _tts(String message) {
+    tts.speak(message);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    KeyboardVisibilityNotification().dispose();
+    _myController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        //_speech.mute(true); //TODO
+        break;
+      // case AppLifecycleState.paused:
+      // case AppLifecycleState.detached:
+      case AppLifecycleState.inactive:
+        //_speech.mute(false); //TODO
+        _stopSpeechRecognition();
+        break;
+    }
   }
 
   @override
@@ -209,27 +198,26 @@ class _SpeechToTextDemoState extends State<SpeechToTextDemo>
       child: Scaffold(
         backgroundColor: Colors.white,
         bottomNavigationBar: Container(
-          height: 300,
+          height: 200,
           color: Colors.white,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              Text('Is Listening $_isListening'),
-              // MultiWave(
-              //   isStartAnimating: _isListening,
-              // ),
+              // 1.
               if (!_isSpeechStarted) ...[
                 FloatingActionButton(
+                  backgroundColor: const Color(0xff764abc),
                   child: Icon(
-                    Icons.stop,
+                    Icons.mic,
                     size: 35,
                   ),
                   onPressed: () {
-                    _stopSpeechRecognition();
+                    _startSpeechRecognition();
                   },
                 ),
               ] else ...[
                 FloatingActionButton(
+                  backgroundColor: const Color(0xff764abc),
                   child: Icon(
                     Icons.stop,
                     size: 35,
@@ -239,11 +227,15 @@ class _SpeechToTextDemoState extends State<SpeechToTextDemo>
                   },
                 ),
               ],
-              Text(
-                kListening,
-                style: GoogleFonts.nunito(
-                    textStyle: TextStyle(color: Colors.black, fontSize: 22.5)),
-              )
+              // 2.
+              if (_isListening) ...[
+                Text(
+                  kListening,
+                  style: GoogleFonts.nunito(
+                      textStyle:
+                          TextStyle(color: Colors.black, fontSize: 22.5)),
+                ),
+              ],
             ],
           ),
         ),
@@ -253,50 +245,61 @@ class _SpeechToTextDemoState extends State<SpeechToTextDemo>
         ),
         body: Container(
           padding: EdgeInsets.all(16),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 16,
-                left: 0,
-                right: 0,
-                bottom: 56,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: 10,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 10,
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      _ttsGreet,
+                      style: GoogleFonts.poppins(
+                        textStyle: TextStyle(
+                            fontSize: 30.5, fontWeight: FontWeight.bold),
                       ),
-                      TextField(
-                        controller: _myController,
-                        //readOnly: true, //TODO
-                        onChanged: (String text) {
-                          setState(() {
-                            _isContentsPresent = text.isNotEmpty;
-                          });
-                        },
-                        focusNode: _nodeText1,
-                        cursorColor: Colors.grey,
-                        style: GoogleFonts.nunito(
-                            textStyle: TextStyle(fontSize: 22.5)),
-                        keyboardType: TextInputType.multiline,
-                        maxLines: null,
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          hintStyle: GoogleFonts.nunito(),
+                    ),
+                  ],
+                ),
+                // 3.
+                TextField(
+                  controller: _myController,
+                  readOnly: true,
+                  onChanged: (String text) {
+                    setState(() {
+                      _isContentsPresent = text.isNotEmpty;
+                    });
+                  },
+                  //focusNode: _nodeText1,
+                  cursorColor: Colors.grey,
+                  style:
+                      GoogleFonts.poppins(textStyle: TextStyle(fontSize: 30.5)),
+                  keyboardType: TextInputType.multiline,
+                  maxLines: null,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintStyle: GoogleFonts.nunito(),
+                  ),
+                ),
+                // 4.
+                if (_isShowResult)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        _ttsStaticResult,
+                        //textAlign: TextAlign.end,
+                        style: GoogleFonts.poppins(
+                          textStyle: TextStyle(
+                              fontSize: 30.5, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              if (_showToolbar)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: _toolBar(),
-                )
-            ],
+              ],
+            ),
           ),
         ),
       ),
